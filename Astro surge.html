@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Runner</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        // Setup the game canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Spaceship object
+        const spaceship = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 30,
+            height: 30,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+        };
+
+        // Gravity wells array
+        let gravityWells = [];
+
+        // Asteroids array
+        let asteroids = [];
+
+        // Fuel pods array
+        let fuelPods = [];
+
+        // Game variables
+        let score = 0;
+        let fuel = 100;
+        let gameOver = false;
+
+        // Control the spaceship
+        function moveSpaceship() {
+            spaceship.x += spaceship.dx;
+            spaceship.y += spaceship.dy;
+
+            // Boundary check
+            if (spaceship.x < 0) spaceship.x = 0;
+            if (spaceship.x + spaceship.width > canvas.width) spaceship.x = canvas.width - spaceship.width;
+            if (spaceship.y < 0) spaceship.y = 0;
+            if (spaceship.y + spaceship.height > canvas.height) spaceship.y = canvas.height - spaceship.height;
+        }
+
+        // Handle keypresses for movement
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') spaceship.dy = -spaceship.speed;
+            if (e.key === 'ArrowDown' || e.key === 's') spaceship.dy = spaceship.speed;
+            if (e.key === 'ArrowLeft' || e.key === 'a') spaceship.dx = -spaceship.speed;
+            if (e.key === 'ArrowRight' || e.key === 'd') spaceship.dx = spaceship.speed;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'ArrowDown' || e.key === 's') spaceship.dy = 0;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'ArrowRight' || e.key === 'd') spaceship.dx = 0;
+        });
+
+        // Gravity wells logic
+        function createGravityWell() {
+            const size = Math.random() * 50 + 30;
+            const x = Math.random() * (canvas.width - size);
+            const y = Math.random() * (canvas.height - size);
+            const pullStrength = Math.random() * 0.05 + 0.01;
+            gravityWells.push({ x, y, size, pullStrength });
+        }
+
+        // Draw gravity wells
+        function drawGravityWells() {
+            gravityWells.forEach(well => {
+                ctx.beginPath();
+                ctx.arc(well.x, well.y, well.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fill();
+            });
+        }
+
+        // Asteroids logic
+        function createAsteroid() {
+            const size = Math.random() * 20 + 10;
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            asteroids.push({ x, y, size });
+        }
+
+        // Draw asteroids
+        function drawAsteroids() {
+            asteroids.forEach(asteroid => {
+                ctx.beginPath();
+                ctx.arc(asteroid.x, asteroid.y, asteroid.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'gray';
+                ctx.fill();
+            });
+        }
+
+        // Fuel pods logic
+        function createFuelPod() {
+            const size = 15;
+            const x = Math.random() * (canvas.width - size);
+            const y = Math.random() * (canvas.height - size);
+            fuelPods.push({ x, y, size });
+        }
+
+        // Draw fuel pods
+        function drawFuelPods() {
+            fuelPods.forEach(fuelPod => {
+                ctx.beginPath();
+                ctx.arc(fuelPod.x, fuelPod.y, fuelPod.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'green';
+                ctx.fill();
+            });
+        }
+
+        // Check for collisions with gravity wells
+        function checkGravityWellCollision() {
+            gravityWells.forEach(well => {
+                const dx = spaceship.x + spaceship.width / 2 - well.x;
+                const dy = spaceship.y + spaceship.height / 2 - well.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < well.size) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        // Check for asteroid collision
+        function checkAsteroidCollision() {
+            asteroids.forEach(asteroid => {
+                const dx = spaceship.x + spaceship.width / 2 - asteroid.x;
+                const dy = spaceship.y + spaceship.height / 2 - asteroid.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < spaceship.width / 2 + asteroid.size) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        // Check for fuel collection
+        function checkFuelCollection() {
+            fuelPods.forEach((fuelPod, index) => {
+                const dx = spaceship.x + spaceship.width / 2 - fuelPod.x;
+                const dy = spaceship.y + spaceship.height / 2 - fuelPod.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < spaceship.width / 2 + fuelPod.size) {
+                    fuel += 20; // Increase fuel
+                    fuelPods.splice(index, 1); // Remove collected fuel pod
+                }
+            });
+        }
+
+        // Update game status
+        function update() {
+            if (gameOver) {
+                alert("Game Over! Your score: " + score);
+                resetGame();
+                return;
+            }
+
+            moveSpaceship();
+            checkGravityWellCollision();
+            checkAsteroidCollision();
+            checkFuelCollection();
+
+            // Decrease fuel over time
+            fuel -= 0.1;
+            if (fuel <= 0) {
+                gameOver = true;
+            }
+
+            // Increase score and create new obstacles/collectibles
+            score += 1;
+            if (Math.random() < 0.02) createGravityWell();
+            if (Math.random() < 0.01) createAsteroid();
+            if (Math.random() < 0.03) createFuelPod();
+
+            // Clear and redraw the game area
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGravityWells();
+            drawAsteroids();
+            drawFuelPods();
+
+            // Draw spaceship
+            ctx.fillStyle = 'white';
+            ctx.fillRect(spaceship.x, spaceship.y, spaceship.width, spaceship.height);
+
+            // Display score and fuel
+            ctx.font = '20px Arial';
+            ctx.fillText("Score: " + score, 10, 30);
+            ctx.fillText("Fuel: " + Math.floor(fuel), 10, 60);
+
+            requestAnimationFrame(update);
+        }
+
+        // Reset the game after a game over
+        function resetGame() {
+            spaceship.x = canvas.width / 2;
+            spaceship.y = canvas.height / 2;
+            spaceship.dx = 0;
+            spaceship.dy = 0;
+            gravityWells = [];
+            asteroids = [];
+            fuelPods = [];
+            score = 0;
+            fuel = 100;
+            gameOver = false;
+            update();
+        }
+
+        // Start the game
+        update();
+    </script>
+</body>
+</html>
